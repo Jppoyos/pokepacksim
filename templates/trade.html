@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Trade{% endblock %}
+
+{% macro value_text(v, qty=1) %}
+{% if v is not none %}${{ "%.2f"|format(v * qty) }}{% if qty > 1 %} <small>(${{ "%.2f"|format(v) }} each)</small>{% endif %}{% else %}N/A{% endif %}
+{% endmacro %}
+
+{% block content %}
+{% set keep = keep|default({}) %}
+<h1>Trade</h1>
+<p class="subtitle">
+    Slots used: <strong>{{ active_count }} / {{ max_slots }}</strong> &nbsp;|&nbsp;
+    Offers take 1 minute to 1 hour to arrive, aren't guaranteed, and traded cards must be claimed.
+</p>
+
+<h2>Your trade listings</h2>
+{% if listings %}
+<div class="trade-list">
+    {% for l in listings %}
+    <div class="trade-item">
+        <div class="trade-side">
+            <div class="trade-caption">You give</div>
+            {{ card_img_html(l.card_id, l.card_image, "trade-photo", "low", l.card_name) }}
+            <div class="trade-name">{{ l.card_name }}{% if l.quantity > 1 %} &times;{{ l.quantity }}{% endif %}</div>
+            <div class="trade-value">{{ value_text(l.value_each, l.quantity) }}</div>
+        </div>
+
+        <div class="trade-arrow">&#8644;</div>
+
+        <div class="trade-side">
+            {% if l.offer_visible %}
+                <div class="trade-caption">You get</div>
+                {{ card_img_html(l.offered_id, l.offered_image, "trade-photo", "low", l.offered_name) }}
+                <div class="trade-name">{{ l.offered_name }}</div>
+                <div class="trade-value">{{ value_text(l.offered_value) }}</div>
+            {% else %}
+                <div class="trade-caption">You get</div>
+                <div class="trade-photo trade-unknown">?</div>
+                <div class="trade-name">Not decided yet</div>
+            {% endif %}
+        </div>
+
+        <div class="trade-actions">
+            <div class="trade-status">
+                {% if l.status == 'active' %}Looking for a match...
+                {% elif l.status == 'offer_pending' %}
+                    {% if l.offer_status == 'pending' %}
+                        Offer arriving &mdash; <span class="countdown" data-countdown="{{ l.seconds_left }}">{{ (l.seconds_left // 60) }}m {{ '%02d'|format(l.seconds_left % 60) }}s left</span>
+                    {% elif l.offer_status == 'awaiting_response' %}An offer is waiting for you
+                    {% elif l.offer_status == 'accepted' %}Accepted &mdash; ready to claim
+                    {% else %}In progress{% endif %}
+                {% elif l.status == 'completed' %}<span class="txn-win">Completed</span>
+                {% elif l.status == 'no_match' %}<span class="txn-loss">No match found (card returned)</span>
+                {% elif l.status == 'cancelled' %}Declined (card returned)
+                {% endif %}
+            </div>
+
+            {% if l.offer_status == 'awaiting_response' %}
+                <form class="inline-form" method="POST" action="{{ url_for('trade_accept', offer_id=l.offer_id, **keep) }}">
+                    <button class="btn" type="submit">Accept</button>
+                </form>
+                <form class="inline-form" method="POST" action="{{ url_for('trade_decline', offer_id=l.offer_id, **keep) }}">
+                    <button class="btn btn-danger" type="submit">Decline</button>
+                </form>
+            {% elif l.offer_status == 'accepted' %}
+                <form class="inline-form" method="POST" action="{{ url_for('trade_claim', listing_id=l.id, **keep) }}">
+                    <button class="btn" type="submit">Claim card</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No trades listed yet.</p>
+{% endif %}
+
+<h2>Put a card up for trade</h2>
+<form class="folder-controls" method="GET">
+    <input type="text" name="search" placeholder="Search your cards..." value="{{ search }}">
+    <select name="sort">
+        {% for key, label in sort_options.items() %}
+        <option value="{{ key }}" {% if sort == key %}selected{% endif %}>Sort: {{ label }}</option>
+        {% endfor %}
+    </select>
+    <label class="check-label"><input type="checkbox" name="dupes" value="1" {% if dupes_only %}checked{% endif %}> Duplicates only</label>
+    {% if wish_search %}<input type="hidden" name="wish_search" value="{{ wish_search }}">{% endif %}
+    <button class="btn" type="submit">Apply</button>
+</form>
+
+{% if folder_cards %}
+<div class="sell-card-list">
+    {% for c in folder_cards %}
+    <form class="sell-card" method="POST" action="{{ url_for('trade_list', **keep) }}">
+        <input type="hidden" name="card_id" value="{{ c.id }}">
+        {{ card_img_html(c.id, c.image_url, "binder-photo", "low", c.name) }}
+        <div class="binder-name">{{ c.name }}</div>
+        <div class="binder-sub">{{ c.set_name }}</div>
+        <div class="binder-sub">Owned: {{ c.qty }} &middot;
+            {% if c.value is not none %}${{ "%.2f"|format(c.value) }}{% else %}N/A{% endif %}
+        </div>
+        <div class="sell-inputs">
+            <input type="number" name="quantity" min="1" max="{{ c.qty }}" value="1" title="Quantity">
+        </div>
+        <button class="btn" type="submit">List for trade</button>
+    </form>
+    {% endfor %}
+</div>
+{% else %}
+<p>No cards found{% if search %} matching "{{ search }}"{% endif %}{% if dupes_only %} with duplicates{% endif %}.</p>
+{% endif %}
+
+<h2>Wishlist</h2>
+<p class="subtitle">Trade offers are biased toward cards on your wishlist that are close in value to what you're offering.</p>
+
+{% if wishlist %}
+<div class="wishlist-chips">
+    {% for w in wishlist %}
+    <form class="inline-form" method="POST" action="{{ url_for('wishlist_remove', wish_id=w.id, **keep) }}">
+        <span class="chip">{{ w.card_name }} <button type="submit" class="chip-x" title="Remove">&times;</button></span>
+    </form>
+    {% endfor %}
+</div>
+{% else %}
+<p>Your wishlist is empty.</p>
+{% endif %}
+
+<form class="folder-controls" method="GET">
+    <input type="text" name="wish_search" placeholder="Search any card to add to your wishlist..." value="{{ wish_search }}">
+    {% if search %}<input type="hidden" name="search" value="{{ search }}">{% endif %}
+    <input type="hidden" name="sort" value="{{ sort }}">
+    {% if dupes_only %}<input type="hidden" name="dupes" value="1">{% endif %}
+    <button class="btn" type="submit">Search</button>
+</form>
+
+{% if wish_search %}
+    {% if wish_results %}
+    <div class="wishlist-chips">
+        {% for r in wish_results %}
+        <form class="inline-form" method="POST" action="{{ url_for('wishlist_add', **keep) }}">
+            <input type="hidden" name="card_id" value="{{ r.id }}">
+            <button class="chip chip-add" type="submit">+ {{ r.name }} <span class="chip-id">({{ r.id }})</span></button>
+        </form>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No cards found matching "{{ wish_search }}".</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

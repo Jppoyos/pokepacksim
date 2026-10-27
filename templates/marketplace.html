@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Marketplaces{% endblock %}
+{% block content %}
+<div class="market-layout">
+    <div class="market-main">
+        <h1>Marketplaces</h1>
+        <p class="subtitle">Pick where you want to buy packs from. Each shop has its own stock and pricing.</p>
+
+        <div class="tile-grid">
+            <a class="tile" href="{{ url_for('marketplace_malls') }}">
+                <div class="tile-title">Malls</div>
+                <div class="tile-sub">Latest prints only &middot; MSRP &middot; limited random stock</div>
+            </a>
+            <a class="tile" href="{{ url_for('marketplace_lcs') }}">
+                <div class="tile-title">Local Card Shop</div>
+                <div class="tile-sub">Latest prints, +0-30% &middot; occasional vintage at market price</div>
+            </a>
+            <a class="tile" href="{{ url_for('marketplace_online') }}">
+                <div class="tile-title">Online</div>
+                <div class="tile-sub">Every era always in stock &middot; prices vary</div>
+            </a>
+        </div>
+    </div>
+    {% include "_wallet.html" %}
+</div>
+{% endblock %}

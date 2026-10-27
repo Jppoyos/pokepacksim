@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Welcome back, {{ username }}</h1>
+
+<div class="stat-grid">
+    <div class="stat-card {% if balance < 0 %}loss{% else %}profit{% endif %}">
+        <div class="stat-label">Account balance</div>
+        <div class="stat-value">{{ balance|money }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total spent on packs</div>
+        <div class="stat-value">${{ "%.2f"|format(total_spent) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Unique cards owned</div>
+        <div class="stat-value">{{ unique_cards }}</div>
+    </div>
+</div>
+
+{% if balance < 0 %}
+<div class="notice-box notice-warn">
+    You're in debt ({{ balance|money }}). If your balance reaches {{ suspend_threshold|money }}, your account is suspended and deleted.
+</div>
+{% endif %}
+
+{% if claimable_sales or trade_notifications or claimable_achievements %}
+<div class="notice-box">
+    {% if claimable_sales %}
+    <div><a href="{{ url_for('sell') }}">{{ claimable_sales }} sold item{{ 's' if claimable_sales != 1 }} ready to claim</a></div>
+    {% endif %}
+    {% if trade_notifications %}
+    <div><a href="{{ url_for('trade') }}">{{ trade_notifications }} trade update{{ 's' if trade_notifications != 1 }} waiting</a></div>
+    {% endif %}
+    {% if claimable_achievements %}
+    <div><a href="{{ url_for('achievements') }}">{{ claimable_achievements }} masterset bonus{{ 'es' if claimable_achievements != 1 }} ready to claim</a></div>
+    {% endif %}
+</div>
+{% endif %}
+
+<h2>Quick links</h2>
+<div class="tile-grid">
+    <a class="tile" href="{{ url_for('marketplace') }}">
+        <div class="tile-title">Marketplaces</div>
+        <div class="tile-sub">Buy and open packs</div>
+    </a>
+    <a class="tile" href="{{ url_for('folder') }}">
+        <div class="tile-title">My Cards</div>
+        <div class="tile-sub">View your collection</div>
+    </a>
+    <a class="tile" href="{{ url_for('sell') }}">
+        <div class="tile-title">Sell</div>
+        <div class="tile-sub">List cards for sale</div>
+    </a>
+    <a class="tile" href="{{ url_for('trade') }}">
+        <div class="tile-title">Trade</div>
+        <div class="tile-sub">Trade cards, manage wishlist</div>
+    </a>
+    <a class="tile" href="{{ url_for('achievements') }}">
+        <div class="tile-title">Achievements</div>
+        <div class="tile-sub">Set completion progress</div>
+    </a>
+    <a class="tile" href="{{ url_for('profit') }}">
+        <div class="tile-title">Profit Report</div>
+        <div class="tile-sub">Pack history and results</div>
+    </a>
+</div>
+{% endblock %}

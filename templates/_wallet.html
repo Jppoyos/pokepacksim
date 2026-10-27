@@ -1,0 +1,9 @@
+<aside class="wallet-panel {% if balance < 0 %}wallet-negative{% endif %}">
+    <div class="wallet-label">Your balance</div>
+    <div class="wallet-amount">{{ balance|money }}</div>
+    {% if balance < 0 %}
+    <div class="wallet-warn">
+        You're in debt. At {{ suspend_threshold|money }} your account is suspended and deleted.
+    </div>
+    {% endif %}
+</aside>

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}My Cards{% endblock %}
+
+{% macro binder_card(item, show_set) %}
+{% set low = card_img_html(item.id, item.image_url, "binder-photo", "low", item.name) %}
+<div class="binder-card" data-zoom
+     data-zoom-img="{{ card_image_url(item.id, item.image_url, 'high') or '' }}"
+     data-zoom-name="{{ item.name }}"
+     data-zoom-holo="{{ item.holo }}"
+     data-zoom-energy="{{ energy_type(item.id) }}"
+     data-zoom-sub="{{ item.set_name }} &middot; x{{ item.qty }}{% if item.value is not none %} &middot; ${{ '%.2f'|format(item.value) }}{% endif %}">
+    {{ low }}
+    <div class="binder-name">{{ item.name }}</div>
+    <div class="binder-sub">{% if show_set %}{{ item.set_name }} &middot; {% endif %}x{{ item.qty }} &middot;
+        {% if item.value is not none %}${{ "%.2f"|format(item.value) }}{% else %}N/A{% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<h1>My Cards</h1>
+<p class="subtitle">Tap or click a card to see it full size.</p>
+
+<form class="folder-controls" method="GET">
+    <input type="text" name="search" placeholder="Search card name..." value="{{ search }}">
+    <select name="sort">
+        <option value="pack"  {% if sort == 'pack' %}selected{% endif %}>Sort: By pack (folder view)</option>
+        <option value="name"  {% if sort == 'name' %}selected{% endif %}>Sort: Name (A-Z)</option>
+        <option value="price" {% if sort == 'price' %}selected{% endif %}>Sort: Price (high to low)</option>
+    </select>
+    <button class="btn" type="submit">Apply</button>
+</form>
+
+{% if items %}
+
+{% if groups is not none %}
+    {% for group in groups %}
+    <h2 class="pack-group-title">{{ group.set_name }}</h2>
+    <div class="card-thumb-grid">
+        {% for item in group.cards %}{{ binder_card(item, false) }}{% endfor %}
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="card-thumb-grid">
+        {% for item in items %}{{ binder_card(item, true) }}{% endfor %}
+    </div>
+{% endif %}
+
+<p class="total-line">Estimated total collection value: <strong>${{ "%.2f"|format(total_value) }}</strong></p>
+
+{% else %}
+<p>
+    {% if search %}No cards match "{{ search }}".{% else %}Your folder is empty.
+    <a href="{{ url_for('marketplace') }}">Go open a pack!</a>{% endif %}
+</p>
+{% endif %}
+
+<!-- Full-size card view. Pressing anywhere outside the card closes it. -->
+<div id="card-overlay" class="card-overlay" aria-hidden="true">
+    <div class="zoom-card" style="--hx: 50%; --hy: 50%;">
+        <div class="zoom-art card-art"></div>
+        <div class="zoom-title"></div>
+        <div class="zoom-sub"></div>
+    </div>
+</div>
+{% endblock %}

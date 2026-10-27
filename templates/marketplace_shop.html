@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ shop_name }}{% endblock %}
+
+{% macro shop_card(item, source, balance, threshold) %}
+<div class="shop-card {% if not item.in_stock %}sold-out{% endif %}">
+    {% if item.tag %}<div class="shop-tag">{{ item.tag }}</div>{% endif %}
+    <div class="shop-name">{{ item.name }}</div>
+    {% if item.in_stock %}
+        <div class="shop-price">${{ "%.2f"|format(item.price) }}</div>
+        {% if item.stock_qty is defined %}
+            <div class="shop-stock">{{ item.stock_qty }} left</div>
+        {% else %}
+            <div class="shop-stock">&nbsp;</div>
+        {% endif %}
+        <a class="btn" href="{{ url_for('open_pack', set_id=item.id, source=source) }}"
+           {% if balance - item.price <= threshold %}
+           onclick="return confirm('This purchase would take your balance to {{ threshold|money }} and your account would be suspended and deleted. Buy anyway?');"
+           {% endif %}>Open Pack</a>
+    {% else %}
+        <div class="shop-price">&mdash;</div>
+        <div class="shop-stock out">Out of stock</div>
+        <button class="btn" disabled>Unavailable</button>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="market-layout">
+    <div class="market-main">
+        <a class="back-link" href="{{ url_for('marketplace') }}">&larr; Marketplaces</a>
+        <h1>{{ shop_name }}</h1>
+        <p class="subtitle">{{ shop_note }}</p>
+
+        <form class="refresh-form" method="POST" action="{{ url_for('marketplace_refresh', shop=source) }}">
+            {% if refreshes_left > 0 %}
+                <button class="btn" type="submit">Refresh stock now</button>
+                <span class="refresh-note">{{ refreshes_left }} manual refresh left today</span>
+            {% else %}
+                <button class="btn" type="button" disabled>Refresh stock now</button>
+                <span class="refresh-note">Manual refresh used for today &mdash; the next automatic restock is at 12:00am / 12:00pm</span>
+            {% endif %}
+        </form>
+
+        {% if groups is not none %}
+            {# Online: one collapsible section per era #}
+            {% for group in groups %}
+            <details class="era-group">
+                <summary>
+                    <span class="era-title">{{ group.era }}</span>
+                    <span class="era-count">{{ group.packs|length }} pack{{ 's' if group.packs|length != 1 }}</span>
+                </summary>
+                <div class="shop-grid">
+                    {% for item in group.packs %}{{ shop_card(item, source, balance, suspend_threshold) }}{% endfor %}
+                </div>
+            </details>
+            {% else %}
+            <p>Nothing available right now &mdash; check back after the next 12:00am / 12:00pm restock.</p>
+            {% endfor %}
+        {% elif listings %}
+            <div class="shop-grid">
+                {% for item in listings %}{{ shop_card(item, source, balance, suspend_threshold) }}{% endfor %}
+            </div>
+        {% else %}
+            <p>Nothing available right now &mdash; check back after the next 12:00am / 12:00pm restock.</p>
+        {% endif %}
+    </div>
+    {% include "_wallet.html" %}
+</div>
+{% endblock %}

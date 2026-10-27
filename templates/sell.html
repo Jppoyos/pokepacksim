@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Sell{% endblock %}
+{% block content %}
+{% set keep = keep|default({}) %}
+<h1>Sell</h1>
+<p class="subtitle">
+    Balance: <strong>{{ balance|money }}</strong> &nbsp;|&nbsp;
+    Slots used: <strong>{{ active_count }} / {{ max_slots }}</strong>
+</p>
+<p class="subtitle">
+    Cards don't sell instantly. Priced near 50% of market they sell within a minute or two;
+    at or above 100% they may take up to an hour or not sell at all. Sold items must be claimed.
+</p>
+
+<h2>Your listings</h2>
+{% if listings %}
+<table class="data-table">
+    <thead>
+        <tr><th>Card</th><th>Qty</th><th>Market (each)</th><th>Asking (each)</th><th>% of market</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+        {% for l in listings %}
+        <tr>
+            <td data-label="Card">{{ l.card_name }}</td>
+            <td data-label="Qty">{{ l.quantity }}</td>
+            <td data-label="Market (each)">${{ "%.2f"|format(l.market_value_each) }}</td>
+            <td data-label="Asking (each)">${{ "%.2f"|format(l.asking_price_each) }}</td>
+            <td data-label="% of market">{{ "%.0f"|format(l.percent_of_market) }}%</td>
+            <td data-label="Status">
+                {% if l.status == 'pending' %}
+                    Pending &mdash; <span class="countdown" data-countdown="{{ l.seconds_left }}">{{ (l.seconds_left // 60) }}m {{ '%02d'|format(l.seconds_left % 60) }}s left</span>
+                {% elif l.status == 'sold' %}
+                    <span class="txn-win">Sold &mdash; ${{ "%.2f"|format(l.sale_amount) }}</span>
+                {% elif l.status == 'unsold' %}
+                    <span class="txn-loss">Didn't sell (returned to folder)</span>
+                {% else %}
+                    Claimed
+                {% endif %}
+            </td>
+            <td data-label="">
+                {% if l.status == 'sold' %}
+                <form method="POST" action="{{ url_for('sell_claim', listing_id=l.id, **keep) }}">
+                    <button class="btn" type="submit">Claim ${{ "%.2f"|format(l.sale_amount) }}</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Nothing listed yet.</p>
+{% endif %}
+
+<h2>List a card for sale</h2>
+<form class="folder-controls" method="GET">
+    <input type="text" name="search" placeholder="Search your cards..." value="{{ search }}">
+    <select name="sort">
+        {% for key, label in sort_options.items() %}
+        <option value="{{ key }}" {% if sort == key %}selected{% endif %}>Sort: {{ label }}</option>
+        {% endfor %}
+    </select>
+    <label class="check-label"><input type="checkbox" name="dupes" value="1" {% if dupes_only %}checked{% endif %}> Duplicates only</label>
+    <button class="btn" type="submit">Apply</button>
+</form>
+
+{% if folder_cards %}
+<div class="sell-card-list">
+    {% for c in folder_cards %}
+    <form class="sell-card" method="POST" action="{{ url_for('sell_list', **keep) }}">
+        <input type="hidden" name="card_id" value="{{ c.id }}">
+        {{ card_img_html(c.id, c.image_url, "binder-photo", "low", c.name) }}
+        <div class="binder-name">{{ c.name }}</div>
+        <div class="binder-sub">{{ c.set_name }}</div>
+        <div class="binder-sub">Owned: {{ c.qty }} &middot;
+            Market: {% if c.value is not none %}${{ "%.2f"|format(c.value) }}{% else %}N/A{% endif %}
+        </div>
+
+        {% if c.value is not none %}
+        <div class="sell-inputs">
+            <input type="number" name="quantity" min="1" max="{{ c.qty }}" value="1" title="Quantity (bulk lists as one item)">
+            <input type="number" name="price_value" step="0.01" min="0.01" placeholder="Price" required>
+            <select name="price_mode">
+                <option value="percent">% of market</option>
+                <option value="dollar">$ each</option>
+            </select>
+        </div>
+        <button class="btn" type="submit">List for sale</button>
+        {% else %}
+        <div class="binder-sub">No market value &mdash; can't be listed</div>
+        {% endif %}
+    </form>
+    {% endfor %}
+</div>
+{% else %}
+<p>No cards found{% if search %} matching "{{ search }}"{% endif %}.</p>
+{% endif %}
+{% endblock %}

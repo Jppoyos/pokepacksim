@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>{% block title %}Pokemon TCG{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="view-{{ view_mode }}" data-view-forced="{{ '1' if view_is_forced else '0' }}">
+    {% if session.get('user_id') %}
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="brand">Pokemon TCG</div>
+            <a href="{{ url_for('dashboard') }}" class="nav-link"><span class="nav-full">Dashboard</span><span class="nav-short">Home</span></a>
+            <a href="{{ url_for('marketplace') }}" class="nav-link"><span class="nav-full">Marketplaces</span><span class="nav-short">Shops</span></a>
+            <a href="{{ url_for('folder') }}" class="nav-link"><span class="nav-full">My Cards</span><span class="nav-short">Cards</span></a>
+            <a href="{{ url_for('sell') }}" class="nav-link">Sell</a>
+            <a href="{{ url_for('trade') }}" class="nav-link">Trade</a>
+            <a href="{{ url_for('achievements') }}" class="nav-link"><span class="nav-full">Achievements</span><span class="nav-short">Awards</span></a>
+            <a href="{{ url_for('profit') }}" class="nav-link"><span class="nav-full">Profit Report</span><span class="nav-short">Profit</span></a>
+            <a href="{{ url_for('set_view', mode='desktop' if view_mode == 'mobile' else 'mobile') }}" class="nav-link view-switch">
+                {{ 'Desktop view' if view_mode == 'mobile' else 'Mobile view' }}
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-link logout">
+                <span class="nav-full">Log out ({{ session.get('username') }})</span><span class="nav-short">Log out</span>
+            </a>
+        </nav>
+        <main class="content">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% else %}
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash flash-top">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block auth_content %}{% endblock %}
+        <div class="auth-view-switch">
+            <a href="{{ url_for('set_view', mode='desktop' if view_mode == 'mobile' else 'mobile') }}">
+                {{ 'Desktop view' if view_mode == 'mobile' else 'Mobile view' }}
+            </a>
+        </div>
+    {% endif %}
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Opening {{ set_name }}{% endblock %}
+{% block content %}
+<h1>Opening a pack from {{ set_name }}</h1>
+<p class="subtitle">Cost: {{ cost|money }}</p>
+
+{% macro pack_art() %}
+<div class="pack-art">
+    <div class="pack-crimp pack-crimp-top"></div>
+    <div class="pack-ball"><div class="pack-ball-btn"></div></div>
+    <div class="pack-crimp pack-crimp-bottom"></div>
+</div>
+{% endmacro %}
+
+<!-- ===== Rip stage ===== -->
+<div id="rip-stage" class="rip-stage">
+    <div id="rip-hint" class="reveal-hint">Press SPACE or tap the pack to rip it open!</div>
+    <div id="rip-click" class="rip-pack-wrap" style="--pack-hue: {{ pack_hue }};">
+        <div id="rip-left" class="rip-half rip-left">{{ pack_art() }}</div>
+        <div id="rip-right" class="rip-half rip-right">{{ pack_art() }}</div>
+    </div>
+</div>
+
+<!-- ===== Stacked card deck ===== -->
+<div id="deck-section" class="hidden-summary">
+    {% if god_pack %}
+    <div class="god-banner">&#10024; GOD PACK! &#10024;</div>
+    {% endif %}
+    <div id="deck-hint" class="reveal-hint">Press SPACE or tap the card to swipe to the next one</div>
+
+    <div class="deck-wrap">
+        <div id="card-stack" class="card-stack" data-holo-follow>
+            {% for card in cards %}
+            <div class="stack-card {% if card.is_hit %}is-hit{% endif %}"
+                 data-index="{{ loop.index0 }}"
+                 style="z-index: {{ cards|length - loop.index0 }};
+                        {% if loop.index0 > 0 %}transform: rotate({{ ((loop.index0 * 7) % 9 - 4) * 0.8 }}deg) translate({{ (loop.index0 * 5) % 7 - 3 }}px, {{ loop.index0 * 2 }}px);{% endif %}">
+                <div class="card-art">
+                    {{ card_img_html(card.id, card.image_url, "stack-photo", "high", card.name) }}
+                    {% if card.holo %}<div class="holo-layer holo-{{ card.holo }}"></div>{% endif %}
+                </div>
+                <div class="stack-name">{{ card.name }}</div>
+                <div class="stack-value">
+                    {% if card.value is not none %}${{ "%.2f"|format(card.value) }}{% else %}N/A{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="deck-counter" class="deck-counter">Card 1 of {{ cards|length }}</div>
+
+    <button id="next-btn" class="btn" type="button">Swipe to next card</button>
+
+    <div id="pack-summary" class="pack-summary hidden-summary">
+        <p>Pack cost: {{ cost|money }} &nbsp;&nbsp; Pack value: {{ pack_value|money }}</p>
+        <p class="{% if new_balance < 0 %}txn-loss{% endif %}">
+            Balance: <strong>{{ new_balance|money }}</strong>
+            {% if new_balance < 0 %}
+            <br><span class="summary-warn">You're in debt &mdash; at {{ suspend_threshold|money }} your account is suspended and deleted.</span>
+            {% endif %}
+        </p>
+        <a class="btn" href="{{ url_for('open_pack', set_id=set_id, source=source) }}"
+           {% if new_balance - cost <= suspend_threshold %}
+           onclick="return confirm('Another pack would take your balance to {{ suspend_threshold|money }} and your account would be suspended and deleted. Buy anyway?');"
+           {% endif %}>Open Another Pack</a>
+        <a class="btn" href="{{ url_for('marketplace') }}">Back to Marketplaces</a>
+        <a class="btn" href="{{ url_for('folder') }}">View My Cards</a>
+    </div>
+</div>
+
+<script>
+(function () {
+    const ripStage = document.getElementById('rip-stage');
+    const deckSection = document.getElementById('deck-section');
+    const ripHint = document.getElementById('rip-hint');
+    const ripClick = document.getElementById('rip-click');
+    const stackCards = Array.from(document.querySelectorAll('.stack-card'));
+    const counter = document.getElementById('deck-counter');
+    const deckHint = document.getElementById('deck-hint');
+    const summary = document.getElementById('pack-summary');
+    const nextBtn = document.getElementById('next-btn');
+    const stackEl = document.getElementById('card-stack');
+
+    let ripped = false;
+    let current = 0;           // index of the card currently on top
+    let swiping = false;       // blocks double-triggers mid-animation
+
+    function ripPack() {
+        if (ripped) return;
+        ripped = true;
+        document.getElementById('rip-left').classList.add('torn-left');
+        document.getElementById('rip-right').classList.add('torn-right');
+        ripHint.textContent = 'Ripping...';
+
+        setTimeout(function () {
+            ripStage.style.display = 'none';
+            deckSection.classList.remove('hidden-summary');
+        }, 650);
+    }
+
+    function showLastCardState() {
+        counter.textContent = `Card ${stackCards.length} of ${stackCards.length} - the last one!`;
+        deckHint.textContent = 'That\'s the whole pack!';
+        summary.classList.remove('hidden-summary');
+        nextBtn.style.display = 'none';
+    }
+
+    function swipeNext() {
+        if (!ripped) { ripPack(); return; }
+        if (swiping) return;
+        if (current >= stackCards.length - 1) return;   // last card stays on top
+
+        swiping = true;
+        const card = stackCards[current];
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        card.style.transition = 'transform 0.45s ease, opacity 0.45s ease';
+        card.style.transform = `translateX(${dir * 140}%) rotate(${dir * 22}deg)`;
+        card.style.opacity = '0';
+
+        current++;
+
+        // Straighten the card that just became the top of the stack.
+        const newTop = stackCards[current];
+        newTop.style.transition = 'transform 0.3s ease';
+        newTop.style.transform = 'none';
+
+        if (current >= stackCards.length - 1) {
+            showLastCardState();
+        } else {
+            counter.textContent = `Card ${current + 1} of ${stackCards.length}`;
+        }
+
+        setTimeout(function () { swiping = false; }, 350);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            swipeNext();
+        }
+    });
+
+    stackEl.addEventListener('click', swipeNext);
+    nextBtn.addEventListener('click', swipeNext);
+    ripClick.addEventListener('click', ripPack);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Achievements{% endblock %}
+
+{% macro progress_row(s) %}
+<div class="achievement-row {% if s.complete %}complete{% endif %}">
+    <div class="achievement-head">
+        <span class="achievement-name">{{ s.name }}{% if s.complete %} &#10003;{% endif %}</span>
+        <span class="achievement-count">{{ s.owned }} / {{ s.total }} ({{ s.pct }}%)</span>
+    </div>
+    <div class="progress-track">
+        <div class="progress-fill" style="width: {{ s.pct }}%;"></div>
+    </div>
+    <div class="achievement-foot">
+        {% if s.claimable %}
+            <form method="POST" action="{{ url_for('achievement_claim', set_id=s.set_id) }}">
+                <button class="btn btn-claim" type="submit">Claim ${{ "%.2f"|format(s.bonus) }} bonus</button>
+            </form>
+        {% elif s.claimed %}
+            <span class="claimed-tag">Bonus claimed &#10003;</span>
+        {% else %}
+            <span class="bonus-hint">Masterset bonus: ${{ "%.2f"|format(s.bonus) }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<h1>Achievements</h1>
+<p class="subtitle">
+    Unique cards collected per set &mdash; duplicates don't count. Collect every card in a set to complete the masterset,
+    then claim a bonus of ${{ "%.2f"|format(per_card) }} per card in that set. Each bonus can be claimed once.
+</p>
+
+<h2>In progress ({{ started|length }})</h2>
+{% if started %}
+<div class="achievement-list">
+    {% for s in started %}{{ progress_row(s) }}{% endfor %}
+</div>
+{% else %}
+<p>No progress yet &mdash; open a pack to start collecting.</p>
+{% endif %}
+
+<h2>Not started ({{ not_started|length }})</h2>
+<div class="achievement-list">
+    {% for s in not_started %}{{ progress_row(s) }}{% endfor %}
+</div>
+{% endblock %}

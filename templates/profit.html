@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Profit Report{% endblock %}
+{% block content %}
+<h1>Profit Report</h1>
+
+<!-- ===== Overall summary: always visible, whichever tab is open ===== -->
+<div class="report-summary">
+    <div class="stat-grid">
+        <div class="stat-card {% if balance < 0 %}loss{% else %}profit{% endif %}">
+            <div class="stat-label">Account balance</div>
+            <div class="stat-value">{{ balance|money }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Collection value</div>
+            <div class="stat-value">{{ total_value|money }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Spent on packs</div>
+            <div class="stat-value">{{ total_spent|money }}</div>
+        </div>
+        <div class="stat-card {% if profit >= 0 %}profit{% else %}loss{% endif %}">
+            <div class="stat-label">{% if profit >= 0 %}Pack profit{% else %}Pack loss{% endif %}</div>
+            <div class="stat-value">{{ profit|abs|money }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Tabs: switching shows/hides panels only, nothing reloads ===== -->
+<div data-tabs>
+    <div class="tab-bar" role="tablist">
+        <button type="button" class="tab-btn active" role="tab" data-tab-target="trade">Trade report</button>
+        <button type="button" class="tab-btn" role="tab" data-tab-target="packs">Pack history</button>
+        <button type="button" class="tab-btn" role="tab" data-tab-target="sales">Sales report</button>
+    </div>
+
+    <!-- ----- Trade report ----- -->
+    <section class="tab-panel" data-tab-panel="trade">
+        <div class="stat-grid">
+            <div class="stat-card profit">
+                <div class="stat-label">Trades completed</div>
+                <div class="stat-value">{{ trade_summary.completed }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">No match / declined / open</div>
+                <div class="stat-value">{{ trade_summary.no_match }} / {{ trade_summary.declined }} / {{ trade_summary.open }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Value traded away</div>
+                <div class="stat-value">{{ trade_summary.value_given|money }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Value received</div>
+                <div class="stat-value">{{ trade_summary.value_received|money }}</div>
+            </div>
+        </div>
+
+        {% if trades %}
+        <table class="data-table">
+            <thead>
+                <tr><th>Gave</th><th>Qty</th><th>Got</th><th>Value given</th><th>Value received</th><th>Result</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+                {% for t in trades %}
+                <tr>
+                    <td data-label="Gave">{{ t.gave }}</td>
+                    <td data-label="Qty">{{ t.quantity }}</td>
+                    <td data-label="Got">{% if t.status == 'completed' and t.got %}{{ t.got }}{% else %}&mdash;{% endif %}</td>
+                    <td data-label="Value given">{% if t.value_given is not none %}{{ t.value_given|money }}{% else %}&mdash;{% endif %}</td>
+                    <td data-label="Value received">{% if t.value_received is not none %}{{ t.value_received|money }}{% else %}&mdash;{% endif %}</td>
+                    <td data-label="Result">
+                        {% if t.status == 'completed' %}<span class="txn-win">Completed</span>
+                        {% elif t.status == 'no_match' %}<span class="txn-loss">No match</span>
+                        {% elif t.status == 'cancelled' %}Declined
+                        {% else %}In progress{% endif %}
+                    </td>
+                    <td data-label="Date">{{ t.listed_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No trades yet.</p>
+        {% endif %}
+    </section>
+
+    <!-- ----- Pack history ----- -->
+    <section class="tab-panel" data-tab-panel="packs" hidden>
+        {% if transactions %}
+        <table class="data-table">
+            <thead>
+                <tr><th>Pack opened</th><th>Shop</th><th>Paid</th><th>Cards worth</th><th>Result</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td data-label="Pack opened">{{ t.set_name }}</td>
+                    <td data-label="Shop">{{ t.source }}</td>
+                    <td data-label="Paid">{{ t.cost|money }}</td>
+                    <td data-label="Cards worth">{{ t.pack_value|money }}</td>
+                    <td data-label="Result" class="{% if t.txn_profit >= 0 %}txn-win{% else %}txn-loss{% endif %}">
+                        {% if t.txn_profit >= 0 %}+{% endif %}{{ t.txn_profit|money }}
+                    </td>
+                    <td data-label="Date">{{ t.opened_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No packs opened yet &mdash; nothing to show here.</p>
+        {% endif %}
+    </section>
+
+    <!-- ----- Sales report ----- -->
+    <section class="tab-panel" data-tab-panel="sales" hidden>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-label">Items sold</div>
+                <div class="stat-value">{{ sales_summary.sold }}</div>
+            </div>
+            <div class="stat-card profit">
+                <div class="stat-label">Sales revenue</div>
+                <div class="stat-value">{{ sales_summary.revenue|money }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Waiting to claim</div>
+                <div class="stat-value">{{ sales_summary.unclaimed|money }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Didn't sell / pending</div>
+                <div class="stat-value">{{ sales_summary.unsold }} / {{ sales_summary.pending }}</div>
+            </div>
+        </div>
+
+        {% if sales %}
+        <table class="data-table">
+            <thead>
+                <tr><th>Card</th><th>Qty</th><th>Asked (each)</th><th>% of market</th><th>Result</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+                {% for s in sales %}
+                <tr>
+                    <td data-label="Card">{{ s.card_name }}</td>
+                    <td data-label="Qty">{{ s.quantity }}</td>
+                    <td data-label="Asked (each)">{{ s.asking|money }}</td>
+                    <td data-label="% of market">{{ "%.0f"|format(s.percent) }}%</td>
+                    <td data-label="Result">
+                        {% if s.status == 'claimed' %}<span class="txn-win">Sold &mdash; {{ s.sale_amount|money }} (claimed)</span>
+                        {% elif s.status == 'sold' %}<span class="txn-win">Sold &mdash; {{ s.sale_amount|money }} (unclaimed)</span>
+                        {% elif s.status == 'unsold' %}<span class="txn-loss">Didn't sell</span>
+                        {% else %}Pending{% endif %}
+                    </td>
+                    <td data-label="Date">{{ s.listed_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No sales listed yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<noscript><style>[data-tab-panel][hidden] { display: block; }</style></noscript>
+{% endblock %}
